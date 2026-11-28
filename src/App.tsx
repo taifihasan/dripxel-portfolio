@@ -1,16 +1,17 @@
 import {useEffect,useMemo,useState,type FormEvent} from "react";
 import {
   ArrowDown,ArrowDownRight,ArrowLeft,ArrowUpRight,Asterisk,
-  Award,Check,Clapperboard,ExternalLink,Eye,EyeOff,Film,Instagram,
-  Layers3,LockKeyhole,Menu,Plus,Send,Sparkles,Trash2,
+  Award,Bookmark,Check,Clapperboard,ExternalLink,Eye,EyeOff,Film,Heart,Instagram,
+  Layers3,LockKeyhole,Menu,MessageCircle,Plus,Repeat2,Send,Sparkles,Trash2,
   X,Youtube,Zap,LayoutDashboard,FolderKanban,Image as ImageIcon,
   Mail,Settings2,Clock3
 } from "lucide-react";
 import {supabase,isSupabaseConfigured} from "./lib/supabase";
 import {categories,defaultContent,demoProjects} from "./lib/demo";
 import type {
-  CreatorProgram,Message,Project,SiteContent,SiteContentTextKey
+  CreatorProgram,Message,Project,SiteContent,SiteContentTextKey,XLiveSnapshot
 } from "./types";
+import xLiveGenerated from "./data/x-live.generated";
 
 function useReveal(){
   useEffect(()=>{
@@ -39,19 +40,36 @@ function Brand({name=defaultContent.logoText,href="#top"}:{name?:string;href?:st
 
 function Art({project,index}:{project:Project;index:number}){
   return project.cover_url
-    ?<img className="cover" src={project.cover_url} alt={project.title} loading="lazy" onLoad={e=>{
-      const frame=e.currentTarget.closest<HTMLElement>(".project-image");
-      if(!frame)return;
-      const ratio=e.currentTarget.naturalWidth/e.currentTarget.naturalHeight;
-      frame.dataset.mediaRatio=ratio<.82?"portrait":ratio>1.45?"landscape":"square";
-    }}/>
+    ?<img className="cover" src={project.cover_url} alt={project.title} loading="lazy"/>
     :<div className={`art art-${index%4}`}>
       <div className="art-ring"/><div className="art-ring second"/>
       <div className="art-ball"/><small>DX / {String(index+1).padStart(2,"0")}</small><b>VISUAL STUDY</b>
     </div>;
 }
 
-function ProjectView({project,index,onClose}:{project:Project;index:number;onClose:()=>void}){
+function formatEngagement(value:number|null|undefined):string|null{
+  if(typeof value!=="number"||!Number.isFinite(value))return null;
+  return new Intl.NumberFormat("en",{notation:"compact",maximumFractionDigits:1}).format(value);
+}
+
+function EngagementMetrics({snapshot}:{snapshot?:XLiveSnapshot}){
+  if(!snapshot)return null;
+  const items=[
+    {label:"Views",value:snapshot.views,icon:<Eye size={13}/>},
+    {label:"Likes",value:snapshot.likes,icon:<Heart size={13}/>},
+    {label:"Replies",value:snapshot.comments,icon:<MessageCircle size={13}/>},
+    {label:"Reposts",value:snapshot.reposts,icon:<Repeat2 size={13}/>},
+    {label:"Bookmarks",value:snapshot.bookmarks,icon:<Bookmark size={13}/>}
+  ].filter(item=>typeof item.value==="number"&&Number.isFinite(item.value));
+  if(!items.length)return null;
+  return <div className="project-engagements" aria-label="X post engagement statistics">
+    {items.map(item=><span className="engagement-item" key={item.label} title={`${item.label}: ${Number(item.value).toLocaleString("en")}`}>
+      {item.icon}<b>{formatEngagement(item.value)}</b>
+    </span>)}
+  </div>;
+}
+
+function ProjectView({project,index,onClose,xUrl}:{project:Project;index:number;onClose:()=>void;xUrl?:string}){
   useEffect(()=>{
     const f=(e:KeyboardEvent)=>{if(e.key==="Escape")onClose();};
     window.addEventListener("keydown",f);
@@ -65,7 +83,8 @@ function ProjectView({project,index,onClose}:{project:Project;index:number;onClo
       <div className="view-copy">
         <small>PROJECT / {String(index+1).padStart(2,"0")} · {project.category}</small>
         <h2>{project.title}</h2><h3>{project.summary}</h3><p>{project.description}</p>
-        {project.video_url&&<video src={project.video_url} controls playsInline/>}
+        {xUrl&&<a className="project-x-link project-x-link-modal" href={xUrl} target="_blank" rel="noreferrer">VIEW ORIGINAL ON X <ArrowUpRight size={14}/></a>}
+        {project.video_url&&<video className="project-detail-video" src={project.video_url} controls playsInline preload="metadata"/>}
         {project.gallery_urls?.map(url=><img key={url} src={url} alt={project.title}/>)}
         <button className="plain-link" onClick={onClose}><ArrowLeft/> BACK TO WORK</button>
       </div>
@@ -85,6 +104,7 @@ function displayText(value:string){
 function normalizeContent(value:unknown):SiteContent{
   const source=value&&typeof value==="object"&&!Array.isArray(value)?value as Record<string,unknown>:{};
   const next:Record<string,unknown>={...defaultContent,...source};
+  if(!next.projectXLinks||typeof next.projectXLinks!=="object"||Array.isArray(next.projectXLinks))next.projectXLinks={};
   ["navProcess","navLab","processEyebrow","processKickerRight","processTitle","processDescription","processSteps","labEyebrow","labKickerRight","labTitle","labAccentTitle","labDescription","labExperiments"].forEach(key=>delete next[key]);
   return next as unknown as SiteContent;
 }
@@ -134,6 +154,36 @@ function Portfolio(){
     ()=>category==="All"?projects:projects.filter(p=>p.category===category),
     [category,projects]
   );
+
+  useEffect(()=>{
+    const videos=Array.from(document.querySelectorAll<HTMLVideoElement>(".project-preview-video"));
+    if(!videos.length)return;
+    const visibility=new Map<HTMLVideoElement,number>();
+    const syncPlayback=()=>{
+      const active=new Set([...visibility.entries()]
+        .filter(([,ratio])=>ratio>=.35)
+        .sort((a,b)=>b[1]-a[1])
+        .slice(0,2)
+        .map(([video])=>video));
+      videos.forEach(video=>{
+        if(active.has(video))void video.play().then(()=>video.classList.add("is-playing")).catch(()=>video.classList.remove("is-playing"));
+        else if(!video.paused){video.pause();video.currentTime=0;video.classList.remove("is-playing");}
+      });
+    };
+    if(!("IntersectionObserver" in window)){
+      videos.slice(0,2).forEach(video=>void video.play().then(()=>video.classList.add("is-playing")).catch(()=>video.classList.remove("is-playing")));
+      return()=>videos.forEach(video=>{video.pause();video.classList.remove("is-playing");});
+    }
+    const observer=new IntersectionObserver(entries=>{
+      entries.forEach(entry=>visibility.set(entry.target as HTMLVideoElement,entry.isIntersecting?entry.intersectionRatio:0));
+      syncPlayback();
+    },{threshold:[0,.35,.6,.85]});
+    videos.forEach(video=>observer.observe(video));
+    return()=>{
+      observer.disconnect();
+      videos.forEach(video=>{video.pause();video.currentTime=0;video.classList.remove("is-playing");});
+    };
+  },[filtered]);
 
   async function sendMessage(e:FormEvent<HTMLFormElement>){
     e.preventDefault();
@@ -200,19 +250,38 @@ function Portfolio(){
           {["All",...Array.from(new Set(projects.map(p=>p.category)))].map(c=><button className={category===c?"active":""} key={c} onClick={()=>setCategory(c)}>{c}</button>)}
         </div>
         <div className="projects">
-          {filtered.map((p,i)=><button className={`project project-${i%2}`} key={p.id} onClick={()=>setSelected(p)} data-reveal aria-label={`Open project: ${p.title}`}
-            onMouseEnter={e=>{const video=e.currentTarget.querySelector<HTMLVideoElement>(".project-preview-video");if(video)void video.play().catch(()=>{});}}
-            onMouseLeave={e=>{const video=e.currentTarget.querySelector<HTMLVideoElement>(".project-preview-video");if(video){video.pause();video.currentTime=0;}}}
-            onFocus={e=>{const video=e.currentTarget.querySelector<HTMLVideoElement>(".project-preview-video");if(video)void video.play().catch(()=>{});}}
-            onBlur={e=>{const video=e.currentTarget.querySelector<HTMLVideoElement>(".project-preview-video");if(video){video.pause();video.currentTime=0;}}}>
-            <div className="project-image"><Art project={p} index={i}/>{p.video_url&&<video className="project-preview-video" src={p.video_url} muted loop playsInline preload="none" aria-hidden="true" onLoadedMetadata={e=>{
-              const frame=e.currentTarget.closest<HTMLElement>(".project-image");
-              if(!frame||p.cover_url)return;
-              const ratio=e.currentTarget.videoWidth/e.currentTarget.videoHeight;
-              frame.dataset.mediaRatio=ratio<.82?"portrait":ratio>1.45?"landscape":"square";
-            }}/>}<span className="project-index">DX / {String(i+1).padStart(2,"0")}</span>{p.featured&&<span className="project-featured">FEATURED</span>}<i><ArrowUpRight/></i></div>
-            <div className="project-info"><div><div className="project-info-meta"><small>{p.category}</small><span>{p.year}</span></div><h3>{p.title}</h3><p>{p.summary}</p></div><ArrowUpRight/></div>
-          </button>)}
+          {filtered.map((p,i)=>{
+            const snapshot=xLiveGenerated[p.id];
+            const displayProject:Project={
+              ...p,
+              cover_url:p.cover_url||snapshot?.thumbnail||null,
+              video_url:p.video_url||snapshot?.previewVideo||snapshot?.videoUrl||null
+            };
+            const xUrl=content.projectXLinks?.[p.id]||"";
+            return <article className={`project project-${i%2}`} key={p.id} data-reveal>
+              <button className="project-main" type="button" onClick={()=>setSelected(displayProject)} aria-label={`Open project: ${p.title}`}>
+                <div className="project-image">
+                  <Art project={displayProject} index={i}/>
+                  {displayProject.video_url&&<video className="project-preview-video" src={displayProject.video_url} poster={displayProject.cover_url||undefined} muted loop playsInline preload="none" aria-hidden="true" onLoadedMetadata={e=>{
+                    const video=e.currentTarget;
+                    const frame=video.closest<HTMLElement>(".project-image");
+                    const ratio=video.videoWidth/video.videoHeight;
+                    if(frame&&Number.isFinite(ratio)&&ratio>0)frame.dataset.mediaRatio=ratio<.85?"portrait":ratio>1.45?"landscape":"square";
+                    video.dataset.mediaRatio=ratio<.85?"portrait":ratio>1.45?"landscape":"square";
+                  }}/>}
+                  <span className="project-index">DX / {String(i+1).padStart(2,"0")}</span>
+                  {p.featured&&<span className="project-featured">FEATURED</span>}
+                  <i><ArrowUpRight/></i>
+                </div>
+                <div className="project-info">
+                  <div><div className="project-info-meta"><small>{p.category}</small><span>{p.year}</span></div><h3>{p.title}</h3><p>{p.summary}</p></div>
+                  <ArrowUpRight/>
+                </div>
+                <EngagementMetrics snapshot={snapshot}/>
+              </button>
+              {xUrl&&<a className="project-x-link" href={xUrl} target="_blank" rel="noreferrer">VIEW ON X <ArrowUpRight size={13}/></a>}
+            </article>;
+          })}
         </div>
         {!filtered.length&&<p className="empty-public">New work is on the way.</p>}
       </section>
@@ -222,8 +291,7 @@ function Portfolio(){
         <div className="about-grid">
           <div className={`about-art ${content.aboutImageUrl?"has-image":""}`} data-reveal>
             {content.aboutImageUrl&&<img className="about-photo" src={content.aboutImageUrl} alt={content.aboutImageAlt||"Dripxel creator profile"} loading="lazy"/>}
-            <div className="about-ring"/><div className="about-ring two"/>
-            {!content.aboutImageUrl&&<><strong>D<span>X</span></strong><small>THINK<br/>DIFFERENT.</small><b>STAY<br/>CURIOUS.</b></>}
+            {!content.aboutImageUrl&&<><div className="about-ring"/><div className="about-ring two"/><strong>D<span>X</span></strong><small>THINK<br/>DIFFERENT.</small><b>STAY<br/>CURIOUS.</b></>}
             <span className="about-badge">AI CREATOR / VISUAL STORYTELLER</span>
             <label>CREATIVE ID / DX—001</label>
           </div>
@@ -297,7 +365,7 @@ function Portfolio(){
         <a className="footer-back-top" href="#top">BACK TO TOP <ArrowUpRight size={15}/></a>
       </div>
     </footer>
-    {selected&&<ProjectView project={selected} index={projects.findIndex(p=>p.id===selected.id)} onClose={()=>setSelected(null)}/>}
+    {selected&&<ProjectView project={selected} index={projects.findIndex(p=>p.id===selected.id)} xUrl={content.projectXLinks?.[selected.id]||""} onClose={()=>setSelected(null)}/>}
   </div>;
 }
 
@@ -543,6 +611,10 @@ function Studio(){
               {textField("workTitle","Heading first line")}
               {textField("workAccentTitle","Heading accent line")}
               {textField("workDescription","Section description",true)}
+              <div className="cms-help full"><Zap size={17}/><p>Add each public X post URL below. The production build refreshes its public engagement snapshot (views, likes, replies, reposts and bookmarks). Missing metrics stay hidden; no database migration or API secret is needed.</p></div>
+              {projects.length?projects.map(project=><label className="cms-field full" key={`x-link-${project.id}`}>{project.title} — X post URL
+                <input type="url" value={content.projectXLinks?.[project.id]||""} onChange={e=>setContent(current=>({...current,projectXLinks:{...(current.projectXLinks||{}),[project.id]:e.target.value}}))} placeholder="https://x.com/username/status/1234567890"/>
+              </label>):<div className="cms-help full"><p>Create projects first, then return here to connect their X posts.</p></div>}
             </div>}
 
             {contentGroup==="About"&&<div className="content-fields">

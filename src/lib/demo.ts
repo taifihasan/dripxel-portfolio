@@ -40,7 +40,8 @@ export const defaultContent:SiteContent={
   footerDescription:"INDEPENDENT AI CREATOR\nVISUAL STORYTELLER / CREATIVE EXPERIMENTER",
   footerBottomText:"© {year} DRIPXEL. ALL IDEAS RESERVED.",
   footerTagline:"BUILT FOR THE CURIOUS ✳",
-  xUrl:"",telegramUrl:"",instagramUrl:"",youtubeUrl:"",tiktokUrl:"",behanceUrl:"",linkedinUrl:""
+  xUrl:"",telegramUrl:"",instagramUrl:"",youtubeUrl:"",tiktokUrl:"",behanceUrl:"",linkedinUrl:"",
+  projectXLinks:{}
 };
 
 export const categories=[

@@ -40,10 +40,16 @@ export type SiteContent = {
   contactEmail:string;contactButtonText:string;
   footerDescription:string;footerBottomText:string;footerTagline:string;
   xUrl:string;telegramUrl:string;instagramUrl:string;youtubeUrl:string;tiktokUrl:string;behanceUrl:string;linkedinUrl:string;
+  projectXLinks:Record<string,string>;
+};
+
+export type XLiveSnapshot = {
+  views:number|null;likes:number|null;comments:number|null;reposts:number|null;bookmarks:number|null;
+  thumbnail?:string;previewVideo?:string;videoUrl?:string;duration?:string;fetchedAt?:string;source?:string;
 };
 
 export type SiteContentTextKey = Exclude<keyof SiteContent,
-  "tickerItems"|"capabilities"
+  "tickerItems"|"capabilities"|"projectXLinks"
 >;
 
 export type Message = {
