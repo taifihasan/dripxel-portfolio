@@ -3,7 +3,7 @@ import type {CreatorProgram,Project,SiteContent} from "../types";
 export const defaultContent:SiteContent={
   logoText:"DRIPXEL",
   headerNote:"INDEPENDENT CREATIVE PRACTICE",
-  navWork:"Work",navAbout:"About",navProcess:"Process",navLab:"Lab",navPrograms:"Programs",navCta:"LET'S CREATE",
+  navWork:"Work",navAbout:"About",navCapabilities:"Capabilities",navPrograms:"Programs",navCta:"LET'S CREATE",
   heroEyebrow:"INDEPENDENT AI CREATOR / VISUAL STORYTELLER",
   heroTitle:"IMAGINATION,\nWITHOUT LIMITS.",
   heroDescription:"I turn unconventional ideas into visual experiences through AI, motion and creative experimentation.",
@@ -30,26 +30,9 @@ export const defaultContent:SiteContent={
     {title:"PRODUCT VISUALS",description:"Creating expressive product concepts and campaigns."},
     {title:"MOTION EXPERIMENTS",description:"Exploring rhythm, transitions and the unexpected."}
   ],
-  processEyebrow:"04 / THE CREATIVE PROCESS",processKickerRight:"FROM FIRST THOUGHT TO FINAL FRAME",
-  processTitle:"IDEAS DON'T\nMAKE THEMSELVES.",
-  processDescription:"Every project follows its own path. This is the thinking behind the making.",
-  processSteps:[
-    {title:"DISCOVER",description:"Understand the idea, audience and what the work needs to make someone feel."},
-    {title:"CONCEPTUALIZE",description:"Build the visual direction, references, mood and narrative approach."},
-    {title:"CREATE",description:"Experiment with tools, composition, continuity and motion."},
-    {title:"REFINE",description:"Polish the details, strengthen the story and prepare the final experience."}
-  ],
-  labEyebrow:"05 / THE PLAYGROUND",labKickerRight:"NO RULES. JUST CURIOSITY.",
-  labTitle:"WELCOME TO",labAccentTitle:"THE LAB.",
-  labDescription:"Not every experiment needs a brief. Some ideas are worth exploring just to see where they lead.",
-  labExperiments:[
-    {eyebrow:"EXPERIMENT / 001",title:"FORM\nSTUDIES"},
-    {eyebrow:"EXPERIMENT / 002",title:"ODD\nWORLDS"},
-    {eyebrow:"EXPERIMENT / 003",title:"MOTION\nNOTES"}
-  ],
-  programsEyebrow:"06 / CREATOR COMMUNITY",programsTitle:"PROGRAMS & PARTNERSHIPS.",
+  programsEyebrow:"04 / CREATOR COMMUNITY",programsTitle:"PROGRAMS & PARTNERSHIPS.",
   programsDescription:"Creative communities, programs and collaborations that are part of the journey.",
-  contactEyebrow:"07 / START SOMETHING",contactKickerRight:"OPEN FOR SELECT COLLABORATIONS",
+  contactEyebrow:"05 / START SOMETHING",contactKickerRight:"OPEN FOR SELECT COLLABORATIONS",
   contactMicrocopy:"YOUR IDEA, MY NEXT OBSESSION ✳",
   contactTitle:"HAVE AN IDEA?\nLET'S MAKE IT REAL.",
   contactDescription:"Have a creative project, an unusual concept or an idea worth exploring? Let's create something distinctive.",
@@ -57,7 +40,7 @@ export const defaultContent:SiteContent={
   footerDescription:"INDEPENDENT AI CREATOR\nVISUAL STORYTELLER / CREATIVE EXPERIMENTER",
   footerBottomText:"© {year} DRIPXEL. ALL IDEAS RESERVED.",
   footerTagline:"BUILT FOR THE CURIOUS ✳",
-  xUrl:"",instagramUrl:"",youtubeUrl:"",tiktokUrl:"",behanceUrl:"",linkedinUrl:""
+  xUrl:"",telegramUrl:"",instagramUrl:"",youtubeUrl:"",tiktokUrl:"",behanceUrl:"",linkedinUrl:""
 };
 
 export const categories=[

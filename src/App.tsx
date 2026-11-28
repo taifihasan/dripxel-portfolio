@@ -39,7 +39,12 @@ function Brand({name=defaultContent.logoText,href="#top"}:{name?:string;href?:st
 
 function Art({project,index}:{project:Project;index:number}){
   return project.cover_url
-    ?<img className="cover" src={project.cover_url} alt={project.title} loading="lazy"/>
+    ?<img className="cover" src={project.cover_url} alt={project.title} loading="lazy" onLoad={e=>{
+      const frame=e.currentTarget.closest<HTMLElement>(".project-image");
+      if(!frame)return;
+      const ratio=e.currentTarget.naturalWidth/e.currentTarget.naturalHeight;
+      frame.dataset.mediaRatio=ratio<.82?"portrait":ratio>1.45?"landscape":"square";
+    }}/>
     :<div className={`art art-${index%4}`}>
       <div className="art-ring"/><div className="art-ring second"/>
       <div className="art-ball"/><small>DX / {String(index+1).padStart(2,"0")}</small><b>VISUAL STUDY</b>
@@ -77,6 +82,13 @@ function displayText(value:string){
   return String(value??"").replace(/\\n/g,"\n").replace(/\r\n/g,"\n");
 }
 
+function normalizeContent(value:unknown):SiteContent{
+  const source=value&&typeof value==="object"&&!Array.isArray(value)?value as Record<string,unknown>:{};
+  const next:Record<string,unknown>={...defaultContent,...source};
+  ["navProcess","navLab","processEyebrow","processKickerRight","processTitle","processDescription","processSteps","labEyebrow","labKickerRight","labTitle","labAccentTitle","labDescription","labExperiments"].forEach(key=>delete next[key]);
+  return next as unknown as SiteContent;
+}
+
 function Portfolio(){
   useReveal();
   const [content,setContent]=useState(defaultContent);
@@ -85,6 +97,7 @@ function Portfolio(){
   const [category,setCategory]=useState("All");
   const [selected,setSelected]=useState<Project|null>(null);
   const [menu,setMenu]=useState(false);
+  const [activeSection,setActiveSection]=useState("work");
   const [status,setStatus]=useState("");
   const [error,setError]=useState("");
 
@@ -98,12 +111,24 @@ function Portfolio(){
       client.from("creator_programs").select("*").eq("published",true).order("sort_order")
     ]).then(([c,p,cp])=>{
       if(!live)return;
-      if(c.data?.value)setContent({...defaultContent,...c.data.value});
+      if(c.data?.value)setContent(normalizeContent(c.data.value));
       if(p.data)setProjects(p.data as Project[]);
       if(cp.data)setPrograms(cp.data as CreatorProgram[]);
     });
     return()=>{live=false;};
   },[]);
+
+  useEffect(()=>{
+    if(!("IntersectionObserver" in window))return;
+    const ids=["work","about","capabilities",...(programs.length?["programs"]:[]),"contact"];
+    const elements=ids.map(id=>document.getElementById(id)).filter((el):el is HTMLElement=>!!el);
+    const observer=new IntersectionObserver(entries=>{
+      const visible=entries.filter(entry=>entry.isIntersecting).sort((a,b)=>b.intersectionRatio-a.intersectionRatio)[0];
+      if(visible)setActiveSection((visible.target as HTMLElement).id);
+    },{rootMargin:"-24% 0px -58% 0px",threshold:[0,.15,.35,.55]});
+    elements.forEach(element=>observer.observe(element));
+    return()=>observer.disconnect();
+  },[programs.length]);
 
   const filtered=useMemo(
     ()=>category==="All"?projects:projects.filter(p=>p.category===category),
@@ -132,15 +157,14 @@ function Portfolio(){
     <header className="header">
       <Brand name={content.logoText}/>
       <div className="header-note"><i/> {content.headerNote}</div>
-      <nav className={menu?"nav open":"nav"}>
-        <a href="#work" onClick={()=>setMenu(false)}>{content.navWork}</a>
-        <a href="#about" onClick={()=>setMenu(false)}>{content.navAbout}</a>
-        <a href="#process" onClick={()=>setMenu(false)}>{content.navProcess}</a>
-        <a href="#lab" onClick={()=>setMenu(false)}>{content.navLab}</a>
-        {programs.length>0&&<a href="#programs" onClick={()=>setMenu(false)}>{content.navPrograms}</a>}
-        <a className="nav-cta" href="#contact" onClick={()=>setMenu(false)}>{content.navCta} <ArrowUpRight size={14}/></a>
+      <nav className={menu?"nav open":"nav"} aria-label="Main navigation">
+        <a className={activeSection==="work"?"active":""} aria-current={activeSection==="work"?"location":undefined} href="#work" onClick={()=>setMenu(false)}>{content.navWork}</a>
+        <a className={activeSection==="about"?"active":""} aria-current={activeSection==="about"?"location":undefined} href="#about" onClick={()=>setMenu(false)}>{content.navAbout}</a>
+        <a className={activeSection==="capabilities"?"active":""} aria-current={activeSection==="capabilities"?"location":undefined} href="#capabilities" onClick={()=>setMenu(false)}>{content.navCapabilities}</a>
+        {programs.length>0&&<a className={activeSection==="programs"?"active":""} aria-current={activeSection==="programs"?"location":undefined} href="#programs" onClick={()=>setMenu(false)}>{content.navPrograms}</a>}
+        <a className={activeSection==="contact"?"active":""} aria-current={activeSection==="contact"?"location":undefined} href="#contact" onClick={()=>setMenu(false)}>{content.navCta} <ArrowUpRight size={14}/></a>
       </nav>
-      <button className="mobile-toggle" onClick={()=>setMenu(!menu)} aria-label="Toggle menu">{menu?<X/>:<Menu/>}</button>
+      <button className="mobile-toggle" onClick={()=>setMenu(!menu)} aria-label="Toggle menu" aria-expanded={menu}>{menu?<X/>:<Menu/>}</button>
     </header>
 
     <main id="top">
@@ -151,7 +175,7 @@ function Portfolio(){
         </div>
         <div className="hero-title">
           <h1>{lineBreaks(content.heroTitle).map((x,i)=><span key={i} className={i===1?"blue":""}>{x}</span>)}</h1>
-          <aside><small>01 / 04</small><p>{content.heroDescription}</p><a href="#work"><ArrowDownRight/></a></aside>
+          <aside><small>01 / 05</small><p>{content.heroDescription}</p><a href="#work"><ArrowDownRight/></a></aside>
         </div>
         <div className="hero-art">
           <div className="grid-bg"/>
@@ -176,21 +200,31 @@ function Portfolio(){
           {["All",...Array.from(new Set(projects.map(p=>p.category)))].map(c=><button className={category===c?"active":""} key={c} onClick={()=>setCategory(c)}>{c}</button>)}
         </div>
         <div className="projects">
-          {filtered.map((p,i)=><button className={`project project-${i%2}`} key={p.id} onClick={()=>setSelected(p)} data-reveal>
-            <div className="project-image"><Art project={p} index={i}/><span className="project-index">DX / {String(i+1).padStart(2,"0")}</span><i><ArrowUpRight/></i></div>
-            <div className="project-info"><div><small>{p.category}</small><h3>{p.title}</h3><p>{p.summary}</p></div><ArrowUpRight/></div>
+          {filtered.map((p,i)=><button className={`project project-${i%2}`} key={p.id} onClick={()=>setSelected(p)} data-reveal aria-label={`Open project: ${p.title}`}
+            onMouseEnter={e=>{const video=e.currentTarget.querySelector<HTMLVideoElement>(".project-preview-video");if(video)void video.play().catch(()=>{});}}
+            onMouseLeave={e=>{const video=e.currentTarget.querySelector<HTMLVideoElement>(".project-preview-video");if(video){video.pause();video.currentTime=0;}}}
+            onFocus={e=>{const video=e.currentTarget.querySelector<HTMLVideoElement>(".project-preview-video");if(video)void video.play().catch(()=>{});}}
+            onBlur={e=>{const video=e.currentTarget.querySelector<HTMLVideoElement>(".project-preview-video");if(video){video.pause();video.currentTime=0;}}}>
+            <div className="project-image"><Art project={p} index={i}/>{p.video_url&&<video className="project-preview-video" src={p.video_url} muted loop playsInline preload="none" aria-hidden="true" onLoadedMetadata={e=>{
+              const frame=e.currentTarget.closest<HTMLElement>(".project-image");
+              if(!frame||p.cover_url)return;
+              const ratio=e.currentTarget.videoWidth/e.currentTarget.videoHeight;
+              frame.dataset.mediaRatio=ratio<.82?"portrait":ratio>1.45?"landscape":"square";
+            }}/>}<span className="project-index">DX / {String(i+1).padStart(2,"0")}</span>{p.featured&&<span className="project-featured">FEATURED</span>}<i><ArrowUpRight/></i></div>
+            <div className="project-info"><div><div className="project-info-meta"><small>{p.category}</small><span>{p.year}</span></div><h3>{p.title}</h3><p>{p.summary}</p></div><ArrowUpRight/></div>
           </button>)}
         </div>
         {!filtered.length&&<p className="empty-public">New work is on the way.</p>}
       </section>
 
       <section className="section about" id="about">
-        <div className="kicker light"><span>{content.aboutEyebrow}</span><span>{content.aboutKickerRight}</span></div>
+        <div className="kicker" data-reveal><span>{content.aboutEyebrow}</span><span>{content.aboutKickerRight}</span></div>
         <div className="about-grid">
-          <div className="about-art" data-reveal>
-            {content.aboutImageUrl&&<img className="about-photo" src={content.aboutImageUrl} alt={content.aboutImageAlt||"Dripxel creator profile"}/>}
+          <div className={`about-art ${content.aboutImageUrl?"has-image":""}`} data-reveal>
+            {content.aboutImageUrl&&<img className="about-photo" src={content.aboutImageUrl} alt={content.aboutImageAlt||"Dripxel creator profile"} loading="lazy"/>}
             <div className="about-ring"/><div className="about-ring two"/>
             {!content.aboutImageUrl&&<><strong>D<span>X</span></strong><small>THINK<br/>DIFFERENT.</small><b>STAY<br/>CURIOUS.</b></>}
+            <span className="about-badge">AI CREATOR / VISUAL STORYTELLER</span>
             <label>CREATIVE ID / DX—001</label>
           </div>
           <div className="about-copy" data-reveal>
@@ -201,25 +235,13 @@ function Portfolio(){
         </div>
       </section>
 
-      <section className="section capabilities">
+      <section className="section capabilities" id="capabilities">
         <div className="kicker" data-reveal><span>{content.capabilitiesEyebrow}</span><span>{content.capabilitiesKickerRight}</span></div>
         <div className="section-head" data-reveal><h2>{content.capabilitiesTitle}<br/><em>{content.capabilitiesAccentTitle}</em></h2><p>{content.capabilitiesDescription}</p></div>
         {content.capabilities.map((item,i)=>{
           const Icon=capabilityIcons[i%capabilityIcons.length];
           return <div className="cap-row" key={`${item.title}-${i}`} data-reveal><small>{String(i+1).padStart(2,"0")}</small><h3>{item.title}</h3><p>{item.description}</p><Icon/></div>;
         })}
-      </section>
-
-      <section className="section process" id="process">
-        <div className="kicker light" data-reveal><span>{content.processEyebrow}</span><span>{content.processKickerRight}</span></div>
-        <div className="section-head" data-reveal><h2>{displayText(content.processTitle)}</h2><p>{content.processDescription}</p></div>
-        <div className="steps">{content.processSteps.map((s,i)=><article key={`${s.title}-${i}`} data-reveal><small>{String(i+1).padStart(2,"0")} <ArrowUpRight/></small><h3>{s.title}</h3><p>{s.description}</p></article>)}</div>
-      </section>
-
-      <section className="section lab" id="lab">
-        <div className="kicker" data-reveal><span>{content.labEyebrow}</span><span>{content.labKickerRight}</span></div>
-        <div className="section-head" data-reveal><h2>{content.labTitle}<br/><em>{content.labAccentTitle}</em></h2><p>{content.labDescription}</p></div>
-        <div className="lab-grid">{content.labExperiments.map((item,i)=><div className={`lab-tile ${["one","two","three"][i%3]}`} key={`${item.title}-${i}`} data-reveal><small>{item.eyebrow}</small><i/><b>{lineBreaks(item.title).map((v,j)=><span key={j}>{v}<br/></span>)}</b></div>)}</div>
       </section>
 
       {programs.length>0&&<section className="section programs" id="programs">
@@ -251,19 +273,28 @@ function Portfolio(){
       </section>
     </main>
 
-    <footer>
-      <div className="footer-top"><Brand name={content.logoText}/><p>{content.footerDescription}</p><a href="#top">BACK TO TOP <ArrowUpRight/></a></div>
+    <footer className="site-footer">
+      <div className="footer-top">
+        <div className="footer-brand-block"><Brand name={content.logoText}/><span>INDEPENDENT CREATIVE PRACTICE</span></div>
+        <div className="footer-top-copy"><p>{displayText(content.footerDescription)}</p><a className="footer-contact-link" href="#contact">HAVE A PROJECT IN MIND? <ArrowUpRight size={15}/></a></div>
+      </div>
+      <div className="footer-social-row">
+        <div className="footer-social-heading"><span>LET'S CONNECT</span><small>GOOD IDEAS START WITH A CONVERSATION.</small></div>
+        <div className="footer-socials">
+          {content.xUrl&&<a className="footer-social" href={content.xUrl} target="_blank" rel="noreferrer" aria-label="Visit Dripxel on X"><b className="social-letter">𝕏</b><span><small>FOLLOW / UPDATES</small><strong>X</strong></span><ArrowUpRight size={15}/></a>}
+          {content.telegramUrl&&<a className="footer-social" href={content.telegramUrl} target="_blank" rel="noreferrer" aria-label="Contact Dripxel on Telegram"><Send size={18}/><span><small>MESSAGE / CHAT</small><strong>TELEGRAM</strong></span><ArrowUpRight size={15}/></a>}
+          {content.contactEmail&&<a className="footer-social" href={`mailto:${content.contactEmail}`} aria-label={`Email Dripxel at ${content.contactEmail}`}><Mail size={18}/><span><small>DIRECT / CONTACT</small><strong>EMAIL ME</strong></span><ArrowUpRight size={15}/></a>}
+          {content.instagramUrl&&<a className="footer-social" href={content.instagramUrl} target="_blank" rel="noreferrer" aria-label="Visit Dripxel on Instagram"><Instagram size={18}/><span><small>VISUALS / SOCIAL</small><strong>INSTAGRAM</strong></span><ArrowUpRight size={15}/></a>}
+          {content.youtubeUrl&&<a className="footer-social" href={content.youtubeUrl} target="_blank" rel="noreferrer" aria-label="Visit Dripxel on YouTube"><Youtube size={18}/><span><small>FILMS / VIDEOS</small><strong>YOUTUBE</strong></span><ArrowUpRight size={15}/></a>}
+          {content.tiktokUrl&&<a className="footer-social" href={content.tiktokUrl} target="_blank" rel="noreferrer" aria-label="Visit Dripxel on TikTok"><b className="social-letter">TT</b><span><small>SHORT FORM / SOCIAL</small><strong>TIKTOK</strong></span><ArrowUpRight size={15}/></a>}
+          {content.behanceUrl&&<a className="footer-social" href={content.behanceUrl} target="_blank" rel="noreferrer" aria-label="Visit Dripxel on Behance"><b className="social-letter">Be</b><span><small>PORTFOLIO / DESIGN</small><strong>BEHANCE</strong></span><ArrowUpRight size={15}/></a>}
+          {content.linkedinUrl&&<a className="footer-social" href={content.linkedinUrl} target="_blank" rel="noreferrer" aria-label="Visit Dripxel on LinkedIn"><b className="social-letter">in</b><span><small>NETWORK / CAREER</small><strong>LINKEDIN</strong></span><ArrowUpRight size={15}/></a>}
+        </div>
+      </div>
       <div className="footer-bottom">
         <span>{content.footerBottomText.replace("{year}",String(new Date().getFullYear()))}</span>
-        <div>
-          {content.xUrl&&<a href={content.xUrl} target="_blank" rel="noreferrer">X</a>}
-          {content.instagramUrl&&<a href={content.instagramUrl} target="_blank" rel="noreferrer"><Instagram size={14}/> INSTAGRAM</a>}
-          {content.youtubeUrl&&<a href={content.youtubeUrl} target="_blank" rel="noreferrer"><Youtube size={14}/> YOUTUBE</a>}
-          {content.tiktokUrl&&<a href={content.tiktokUrl} target="_blank" rel="noreferrer">TIKTOK</a>}
-          {content.behanceUrl&&<a href={content.behanceUrl} target="_blank" rel="noreferrer">BEHANCE</a>}
-          {content.linkedinUrl&&<a href={content.linkedinUrl} target="_blank" rel="noreferrer">LINKEDIN</a>}
-        </div>
         <span>{content.footerTagline}</span>
+        <a className="footer-back-top" href="#top">BACK TO TOP <ArrowUpRight size={15}/></a>
       </div>
     </footer>
     {selected&&<ProjectView project={selected} index={projects.findIndex(p=>p.id===selected.id)} onClose={()=>setSelected(null)}/>}
@@ -271,9 +302,9 @@ function Portfolio(){
 }
 
 type Tab="Overview"|"Projects"|"Creator Programs"|"Content"|"Media"|"Inbox";
-type ContentGroup="Navigation"|"Hero"|"Work"|"About"|"Capabilities"|"Process"|"Lab"|"Programs"|"Contact"|"Footer"|"Social";
+type ContentGroup="Navigation"|"Hero"|"Work"|"About"|"Capabilities"|"Programs"|"Contact"|"Footer"|"Social";
 
-const contentGroups:ContentGroup[]=["Navigation","Hero","Work","About","Capabilities","Process","Lab","Programs","Contact","Footer","Social"];
+const contentGroups:ContentGroup[]=["Navigation","Hero","Work","About","Capabilities","Programs","Contact","Footer","Social"];
 
 function Studio(){
   const [ready,setReady]=useState(false),[owner,setOwner]=useState(false);
@@ -310,7 +341,7 @@ function Studio(){
     ]);
     if(p.data)setProjects(p.data as Project[]);
     if(m.data)setMessages(m.data as Message[]);
-    if(c.data?.value)setContent({...defaultContent,...c.data.value});
+    if(c.data?.value)setContent(normalizeContent(c.data.value));
     if(cp.data)setPrograms(cp.data as CreatorProgram[]);
     else if(cp.error)setNotice(`Creator Programs migration required: ${cp.error.message}`);
   }
@@ -489,8 +520,7 @@ function Studio(){
               {textField("headerNote","Header note")}
               {textField("navWork","Work menu label")}
               {textField("navAbout","About menu label")}
-              {textField("navProcess","Process menu label")}
-              {textField("navLab","Lab menu label")}
+              {textField("navCapabilities","Capabilities menu label")}
               {textField("navPrograms","Programs menu label")}
               {textField("navCta","Navigation CTA label")}
             </div>}
@@ -540,27 +570,6 @@ function Studio(){
               </div>
             </div>}
 
-            {contentGroup==="Process"&&<div className="content-fields">
-              {textField("processEyebrow","Section eyebrow")}
-              {textField("processKickerRight","Right-side kicker")}
-              {textField("processTitle","Section headline",true)}
-              {textField("processDescription","Section description",true)}
-              <div className="repeat-list full"><div className="repeat-heading"><b>Process steps</b><button type="button" onClick={()=>setContent(c=>({...c,processSteps:[...c.processSteps,{title:"New step",description:"Describe this step."}]}))}><Plus size={14}/> ADD STEP</button></div>
-                {content.processSteps.map((item,i)=><div className="repeat-card" key={i}><small>STEP {String(i+1).padStart(2,"0")}</small><input aria-label="Step title" value={item.title} onChange={e=>setContent(c=>({...c,processSteps:c.processSteps.map((v,j)=>j===i?{...v,title:e.target.value}:v)}))}/><textarea aria-label="Step description" rows={2} value={item.description} onChange={e=>setContent(c=>({...c,processSteps:c.processSteps.map((v,j)=>j===i?{...v,description:e.target.value}:v)}))}/><button type="button" className="remove-item" onClick={()=>setContent(c=>({...c,processSteps:c.processSteps.filter((_,j)=>j!==i)}))}><Trash2 size={13}/> REMOVE</button></div>)}
-              </div>
-            </div>}
-
-            {contentGroup==="Lab"&&<div className="content-fields">
-              {textField("labEyebrow","Section eyebrow")}
-              {textField("labKickerRight","Right-side kicker")}
-              {textField("labTitle","Heading first line")}
-              {textField("labAccentTitle","Heading accent line")}
-              {textField("labDescription","Section description",true)}
-              <div className="repeat-list full"><div className="repeat-heading"><b>Experiment tiles</b><button type="button" onClick={()=>setContent(c=>({...c,labExperiments:[...c.labExperiments,{eyebrow:"EXPERIMENT / NEW",title:"NEW\nIDEA"}]}))}><Plus size={14}/> ADD TILE</button></div>
-                {content.labExperiments.map((item,i)=><div className="repeat-card" key={i}><small>TILE {String(i+1).padStart(2,"0")}</small><input aria-label="Tile eyebrow" value={item.eyebrow} onChange={e=>setContent(c=>({...c,labExperiments:c.labExperiments.map((v,j)=>j===i?{...v,eyebrow:e.target.value}:v)}))}/><textarea aria-label="Tile title" rows={2} value={item.title} onChange={e=>setContent(c=>({...c,labExperiments:c.labExperiments.map((v,j)=>j===i?{...v,title:e.target.value}:v)}))}/><button type="button" className="remove-item" onClick={()=>setContent(c=>({...c,labExperiments:c.labExperiments.filter((_,j)=>j!==i)}))}><Trash2 size={13}/> REMOVE</button></div>)}
-              </div>
-            </div>}
-
             {contentGroup==="Programs"&&<div className="content-fields">
               {textField("programsEyebrow","Section eyebrow")}
               {textField("programsTitle","Section headline",true)}
@@ -586,6 +595,8 @@ function Studio(){
 
             {contentGroup==="Social"&&<div className="content-fields">
               {textField("xUrl","X / Twitter URL")}
+              {textField("telegramUrl","Telegram URL")}
+              <div className="cms-help full"><Mail/><p>The footer's Mail button uses the public contact email configured in the Contact section.</p></div>
               {textField("instagramUrl","Instagram URL")}
               {textField("youtubeUrl","YouTube URL")}
               {textField("tiktokUrl","TikTok URL")}

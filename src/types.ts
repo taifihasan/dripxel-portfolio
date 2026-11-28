@@ -5,8 +5,6 @@ export type Project = {
 };
 
 export type Capability = {title:string;description:string};
-export type ProcessStep = {title:string;description:string};
-export type LabExperiment = {eyebrow:string;title:string};
 
 export type CreatorProgram = {
   id:string;
@@ -29,7 +27,7 @@ export type CreatorProgram = {
 export type SiteContent = {
   logoText:string;
   headerNote:string;
-  navWork:string;navAbout:string;navProcess:string;navLab:string;navPrograms:string;navCta:string;
+  navWork:string;navAbout:string;navCapabilities:string;navPrograms:string;navCta:string;
   heroEyebrow:string;heroTitle:string;heroDescription:string;availabilityLabel:string;
   heroStampOne:string;heroStampTwo:string;heroArtCaption:string;heroFootnote:string;tickerItems:string[];
   workEyebrow:string;workKickerRight:string;workTitle:string;workAccentTitle:string;workDescription:string;
@@ -37,17 +35,15 @@ export type SiteContent = {
   aboutExtra:string;aboutImageUrl:string;aboutImageAlt:string;aboutLinkText:string;
   capabilitiesEyebrow:string;capabilitiesKickerRight:string;capabilitiesTitle:string;capabilitiesAccentTitle:string;
   capabilitiesDescription:string;capabilities:Capability[];
-  processEyebrow:string;processKickerRight:string;processTitle:string;processDescription:string;processSteps:ProcessStep[];
-  labEyebrow:string;labKickerRight:string;labTitle:string;labAccentTitle:string;labDescription:string;labExperiments:LabExperiment[];
   programsEyebrow:string;programsTitle:string;programsDescription:string;
   contactEyebrow:string;contactKickerRight:string;contactMicrocopy:string;contactTitle:string;contactDescription:string;
   contactEmail:string;contactButtonText:string;
   footerDescription:string;footerBottomText:string;footerTagline:string;
-  xUrl:string;instagramUrl:string;youtubeUrl:string;tiktokUrl:string;behanceUrl:string;linkedinUrl:string;
+  xUrl:string;telegramUrl:string;instagramUrl:string;youtubeUrl:string;tiktokUrl:string;behanceUrl:string;linkedinUrl:string;
 };
 
 export type SiteContentTextKey = Exclude<keyof SiteContent,
-  "tickerItems"|"capabilities"|"processSteps"|"labExperiments"
+  "tickerItems"|"capabilities"
 >;
 
 export type Message = {
